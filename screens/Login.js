@@ -1,7 +1,7 @@
 import React from 'react';
 import Layout from '../components/layout'
 
-import {ScrollView, View} from "react-native";
+import {ScrollView, View, Keyboard} from "react-native";
 import Textview from "../components/text";
 import Btnview from "../components/button";
 import {ScaledSheet} from "react-native-size-matters";
@@ -11,7 +11,10 @@ import Step from "../components/step";
 import {Icon, Wizard} from "react-native-ui-lib";
 import Input from "../components/input";
 import DatePicker from "../components/datePicker";
-import Text from "../components/text";
+import RNOtpVerify from "react-native-otp-verify";
+import OTPInputView from "@twotalltotems/react-native-otp-input";
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scrollview'
+import SmsRetriever from 'react-native-sms-retriever';
 
 export default class Login extends Input {
     constructor(props) {
@@ -46,12 +49,29 @@ export default class Login extends Input {
     }
 
     componentDidUpdate() {
+        console.log("JEJE")
+        console.log(this.state.otp)
     }
 
     componentWillUnmount() {
     }
 
     componentDidMount() {
+        this.otp().then(r => console.log(r))
+    }
+
+    otp = async () => {
+        try {
+            const registered = await SmsRetriever.startSmsRetriever();
+            if (registered) {
+                await SmsRetriever.addSmsListener(event => {
+                    console.log(event.message);
+                    SmsRetriever.removeSmsListener();
+                });
+            }
+        } catch (error) {
+            console.log(JSON.stringify(error));
+        }
     }
 
     onPressButton() {
@@ -151,12 +171,14 @@ export default class Login extends Input {
                 stepState: Wizard.States.DISABLED,
                 step:
                     <View style={styles.inputs}>
-                        <Input
-                            name="otp"
-                            required={true}
-                            type={'numero'}
-                            placeholder={'OTP'}
-                            ref={"otp"}
+                        <OTPInputView
+                            style={styles.otpInput}
+                            pinCount={4}
+                            codeInputFieldStyle={styles.codeInput}
+                            code={this.state.otp}
+                            onCodeChanged={(value) => this.setState({otp: value})}
+                            autoFocusOnLoad
+                            onCodeFilled={(code) => console.log(code)}
                         />
                     </View>
             }
@@ -175,7 +197,7 @@ export default class Login extends Input {
         const getBody = () => (
             <>
                 <View style={styles.containerBody}>
-                    <ScrollView>
+                    <KeyboardAwareScrollView>
                         <View style={styles.child}>
                             <View style={styles.headerBody}>
                                 <View style={styles.iconBody}>
@@ -196,7 +218,7 @@ export default class Login extends Input {
                                 </View>
                             </View>
                         </View>
-                    </ScrollView>
+                    </KeyboardAwareScrollView>
                 </View>
             </>
         )
@@ -243,6 +265,15 @@ const styles = ScaledSheet.create({
     layout: {
         backgroundColor: '#f2f2f2'
     },
+    otpInput: {
+        height: '10%',
+        marginTop: '8%',
+    },
+    codeInput: {
+        color: '#1f2226',
+        borderColor: '#767d85',
+    },
+
     container: {
         width: '100%',
         display: 'flex',

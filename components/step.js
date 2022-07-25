@@ -21,7 +21,6 @@ export default class Step extends Input {
     }
 
     render() {
-        const MySwal = withReactContent(Swal)
         const renderSteps = () => (
             this.props.steps.map((step, index) => (
                 <Wizard.Step state={step.stepState} label={step.name} key={index}/>
@@ -40,7 +39,7 @@ export default class Step extends Input {
         const renderNextButton = () => {
             if (this.state.activeIndex != this.props.steps.length - 1) {
                 return (
-                    <Btnview label={'Next'} onPress={() => goToNextStep()}/>
+                    <Btnview label={'Next'} onPress={() => goToNextStep()} disable={!!this.props.estado.loading}/>
                 );
             } else {
                 return (
@@ -109,7 +108,8 @@ export default class Step extends Input {
                         {this.state.activeIndex == 0 ?
                             <></>
                             :
-                            <Btnview label={'Back'} onPress={() => goToPrevStep()} tipo={"secundario"}/>
+                            <Btnview label={'Back'} onPress={() => goToPrevStep()} tipo={"secundario"}
+                                     disable={!!this.props.estado.loading}/>
                         }
 
                     </View>

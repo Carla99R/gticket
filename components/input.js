@@ -11,7 +11,7 @@ const {TextField} = Incubator;
 
 import {ScaledSheet, verticalScale} from 'react-native-size-matters';
 
-function formatMoney(amount, decimalCount = 2, decimal = ",", thousands = ".") {
+export function formatMoney(amount, decimalCount = 0, decimal = ",", thousands = ".") {
     try {
         decimalCount = Math.abs(decimalCount);
         decimalCount = isNaN(decimalCount) ? 2 : decimalCount;

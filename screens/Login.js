@@ -1,20 +1,23 @@
 import React from 'react';
 import Layout from '../components/layout'
 
-import {ScrollView, View, Keyboard} from "react-native";
+import {View} from "react-native";
 import Textview from "../components/text";
+import Text from "../components/text";
 import Btnview from "../components/button";
 import {ScaledSheet} from "react-native-size-matters";
 import ActionSheetView from "../components/actionSheet";
 import Icon2 from "react-native-vector-icons/EvilIcons";
+import Icon3 from "react-native-vector-icons/FontAwesome";
+import Icon4 from "react-native-vector-icons/MaterialIcons";
 import Step from "../components/step";
-import {Icon, Wizard} from "react-native-ui-lib";
-import Input from "../components/input";
-import DatePicker from "../components/datePicker";
-import RNOtpVerify from "react-native-otp-verify";
+import {Icon, LoaderScreen, Wizard} from "react-native-ui-lib";
+import Input, {formatMoney} from "../components/input";
 import OTPInputView from "@twotalltotems/react-native-otp-input";
 import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scrollview'
 import SmsRetriever from 'react-native-sms-retriever';
+import * as ImagePicker from 'expo-image-picker';
+import DatePicker from "../components/datePicker";
 
 export default class Login extends Input {
     constructor(props) {
@@ -23,16 +26,33 @@ export default class Login extends Input {
         this.refLastName = React.createRef()
         this.refEmail = React.createRef()
         this.refPhone = React.createRef()
+        this.refCi = React.createRef()
 
         this.state = {
             showAction: false,
             name: '',
             last_name: '',
+            ci: '',
+            validCi: false,
+            validPhoto: false,
             email: '',
             phone: '',
             date: '',
+            singleFile: {
+                name: '',
+                uri: '',
+                type: ''
+            },
+            singlePhoto: {
+                name: '',
+                uri: '',
+                type: ''
+            },
+            loading: false,
             otp: '',
-            error: ''
+            error: '',
+            errorFile: '',
+            errorPhoto: ''
         };
 
     }
@@ -41,16 +61,31 @@ export default class Login extends Input {
         this.setState({
             name: '',
             last_name: '',
+            ci: '',
+            validCi: false,
+            validPhoto: false,
             email: '',
             phone: '',
             date: '',
             otp: '',
+            singleFile: {
+                name: '',
+                uri: '',
+                type: ''
+            },
+            singlePhoto: {
+                name: '',
+                uri: '',
+                type: ''
+            },
+            loading: false,
+            error: '',
+            errorFile: '',
+            errorPhoto: ''
         })
     }
 
     componentDidUpdate() {
-        console.log("JEJE")
-        console.log(this.state.otp)
     }
 
     componentWillUnmount() {
@@ -79,12 +114,197 @@ export default class Login extends Input {
         this.setState({showAction: true});
     }
 
-    render() {
-        const handleError = (value) => {
-            console.log("JEJE")
-            console.log(value)
-            this.setState({error: value})
+    handleError = (value) => {
+        this.setState({error: value})
+    }
+
+    pickImage = async () => {
+        // No permissions request is necessary for launching the image library
+        let r = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        console.log(r)
+        if (r.status == 'granted') {
+            let result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.All,
+                allowsEditing: true,
+                aspect: [4, 4],
+                quality: 0.5
+            });
+
+            console.log(result);
+            console.log(result.uri);
+
+            if (!result.cancelled) {
+                const fileName = result.uri.split('/').pop();
+                const fileType = fileName.split('.').pop();
+                //
+                // console.log(fileName, fileType);
+                this.setState({
+                    singleFile: {
+                        name: fileName,
+                        uri: result.uri,
+                        type: fileType
+                    },
+                    loading: true
+                })
+                await this.uploadImage()
+            }
         }
+
+
+    };
+
+    takePhoto = async () => {
+        // No permissions request is necessary for launching the image library
+        let r = await ImagePicker.requestCameraPermissionsAsync()
+        console.log(r)
+        if (r.status == 'granted') {
+            let result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.All,
+                allowsEditing: true,
+                aspect: [4, 4],
+                quality: 0.5
+            });
+
+            console.log(result);
+
+            if (!result.cancelled) {
+                const fileName = result.uri.split('/').pop();
+                const fileType = fileName.split('.').pop();
+                //
+                // console.log(fileName, fileType);
+                this.setState({
+                    singlePhoto: {
+                        name: fileName,
+                        uri: result.uri,
+                        type: fileType
+                    },
+                    loading: true
+                })
+                await this.uploadPhoto()
+            }
+        }
+
+
+    };
+
+    uploadImage = async () => {
+        //Check if any file is selected or not
+        if (this.state.singleFile.uri != null) {
+            var formdata = new FormData();
+            formdata.append("file", {
+                uri: this.state.singleFile.uri,
+                name: this.state.singleFile.name,
+                type: this.state.singleFile.type
+            });
+            var requestOptions = {
+                method: 'POST',
+                body: formdata,
+                redirect: 'follow'
+            };
+
+            await fetch("http://128.199.37.161:5000/file", requestOptions)
+                .then(response => response.text())
+                .then(result => {
+                    console.log(result)
+                    const compare = formatMoney(this.state.ci)
+                    const comparator = result.includes(compare);
+                    this.setState({validCi: comparator})
+                    console.log("comparator")
+                    console.log(comparator)
+                    if (comparator === false) {
+                        this.setState({errorFile: "La cédula no coincide"})
+                    } else {
+                        this.setState({errorFile: ""})
+                    }
+                })
+                .catch(error => {
+                    console.log('error', error)
+                    this.setState({
+                        singleFile: {
+                            name: '',
+                            uri: '',
+                            type: ''
+                        }
+                    })
+                    alert(error);
+                });
+
+        } else {
+            //if no file selected the show alert
+            this.setState({
+                singleFile: {
+                    name: '',
+                    uri: '',
+                    type: ''
+                }
+            })
+            alert('Please Select File first');
+        }
+        this.setState({loading: false})
+    };
+
+    uploadPhoto = async () => {
+        //Check if any file is selected or not
+        if (this.state.singleFile.uri != null) {
+            var formdata = new FormData();
+            formdata.append("picture", {
+                uri: this.state.singlePhoto.uri,
+                name: this.state.singlePhoto.name,
+                type: this.state.singlePhoto.type
+            });
+            formdata.append("file", {
+                uri: this.state.singleFile.uri,
+                name: this.state.singleFile.name,
+                type: this.state.singleFile.type
+            });
+            formdata.append("name", this.state.name)
+            var requestOptions = {
+                method: 'POST',
+                body: formdata,
+                redirect: 'follow'
+            };
+
+            await fetch("http://128.199.37.161:5000/recognize", requestOptions)
+                .then(response => response.text())
+                .then(result => {
+                    const resp = JSON.parse(result)
+                    console.log(resp)
+                    console.log(resp.response)
+                    if (resp.code == 1) {
+                        this.setState({errorPhoto: resp.response})
+                    } else {
+                        this.setState({errorPhoto: ""})
+                    }
+
+                })
+                .catch(error => {
+                    console.log('error', error)
+                    this.setState({
+                        singlePhoto: {
+                            name: '',
+                            uri: '',
+                            type: ''
+                        }
+                    })
+                    alert(error);
+                });
+
+        } else {
+            //if no file selected the show alert
+            this.setState({
+                singlePhoto: {
+                    name: '',
+                    uri: '',
+                    type: ''
+                }
+            })
+            alert('Please Select File first');
+        }
+        this.setState({loading: false})
+    };
+
+    render() {
+
         const inputs = [
             {
                 name: "name",
@@ -92,8 +312,8 @@ export default class Login extends Input {
                 type: 'text',
                 placeholder: 'Name',
                 ref: this.refName,
-                valor: undefined,
-                handleE: handleError,
+                valor: this.state.name,
+                handleE: this.handleError,
             },
             {
                 name: "last_name",
@@ -101,33 +321,45 @@ export default class Login extends Input {
                 type: 'text',
                 placeholder: 'Last name',
                 ref: this.refLastName,
-                valor: undefined,
-                handleE: handleError,
-            }, {
+                valor: this.state.last_name,
+                handleE: this.handleError,
+            },
+            {
+                name: "ci",
+                required: true,
+                type: 'numero',
+                placeholder: 'Document',
+                ref: this.refCi,
+                valor: this.state.ci,
+                min: 7,
+                limite: 8,
+                handleE: this.handleError,
+            },
+            {
                 name: "email",
                 required: true,
                 type: 'email',
                 placeholder: 'Email address',
                 ref: this.refEmail,
-                valor: undefined,
-                handleE: handleError,
+                valor: this.state.email,
+                handleE: this.handleError,
             }, {
                 name: "phone",
                 required: true,
                 type: 'phone',
                 placeholder: 'Phone number',
                 ref: this.refPhone,
-                valor: undefined,
+                valor: this.state.phone,
                 min: 11,
-                max: 11,
-                handleE: handleError,
+                limite: 11,
+                handleE: this.handleError,
             },
         ]
 
         const steps = [
             {
                 name: "Datos",
-                validate: [this.state.name, this.state.last_name, this.state.email, this.state.phone],
+                validate: [this.state.name, this.state.last_name, this.state.ci, this.state.email, this.state.phone],
                 stepState: Wizard.States.DISABLED,
                 step:
                     <View style={styles.inputs}>
@@ -142,7 +374,7 @@ export default class Login extends Input {
                                     ref={input.ref}
                                     valor={input.valor}
                                     min={input.min}
-                                    max={input.max}
+                                    limite={input.limite}
                                     changeStatus={(value) => {
                                         let x = this.state
                                         x[input.name] = value
@@ -163,6 +395,72 @@ export default class Login extends Input {
                         <DatePicker
                             input={() => input()}
                             setValue={(value) => this.setState({date: value})}/>
+                    </View>
+            },
+            {
+                name: "Subir documentos",
+                validate: [this.state.singleFile.name, this.state.validCi],
+                stepState: Wizard.States.DISABLED,
+                step:
+                    <View style={styles.inputs}>
+                        <Textview style={styles.info}>
+                            Por favor, adjunte una foto de su cécula
+                        </Textview>
+                        <View style={styles.icon}>
+                            {this.state.loading ?
+                                <LoaderScreen color={"#30cab1"} message="Loading..." overlay style={styles.loader}/>
+                                :
+                                <>
+                                    <Icon3 name="upload" size={30} color="#1f2226"
+                                           onPress={() => {
+                                               this.pickImage().then(r => console.log(r))
+                                           }}/>
+                                    <Textview>
+                                        {this.state.singleFile.name}
+                                    </Textview>
+                                    {this.state.errorFile ? <Text
+                                        style={{
+                                            color: 'red',
+                                            textAlign: "left",
+                                            paddingHorizontal: 4
+                                        }}>{this.state.errorFile}</Text> : null}
+                                </>
+                            }
+                        </View>
+
+                    </View>
+            },
+            {
+                name: "Subir foto",
+                validate: [this.state.singlePhoto.name, this.state.validPhoto],
+                stepState: Wizard.States.DISABLED,
+                step:
+                    <View style={styles.inputs}>
+                        <Textview style={styles.info}>
+                            Por favor, tómese una foto
+                        </Textview>
+                        <View style={styles.icon}>
+                            {this.state.loading ?
+                                <LoaderScreen color={"#30cab1"} message="Loading..." overlay style={styles.loader}/>
+                                :
+                                <>
+                                    <Icon4 name="add-a-photo" size={30} color="#1f2226"
+                                           onPress={() => {
+                                               this.takePhoto().then(r => console.log(r))
+                                           }}/>
+                                    <Textview>
+                                        {this.state.singlePhoto.name}
+                                    </Textview>
+                                    {this.state.errorPhoto ? <Text
+                                        style={{
+                                            color: 'red',
+                                            textAlign: "left",
+                                            paddingHorizontal: 4
+                                        }}>{this.state.errorPhoto}</Text> : null}
+                                </>
+                            }
+                        </View>
+
                     </View>
             },
             {
@@ -374,5 +672,23 @@ const styles = ScaledSheet.create({
     },
     btnBody: {
         paddingTop: '2%'
+    },
+    info: {
+        textAlign: 'center',
+        color: '#767d85',
+        width: '100%',
+        fontWeight: 'bold',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    icon: {
+        paddingTop: '5%',
+        display: 'flex',
+        justifyContent: 'space-evenly',
+        alignItems: 'center'
+    },
+    loader: {
+        paddingTop: '15%'
     }
 });

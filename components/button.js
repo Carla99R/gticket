@@ -107,7 +107,8 @@ export default class Btnview extends Base {
     }
 
     render() {
-        return (<TouchableHighlight onPressIn={() => this.pressDown()} onPressOut={() => this.pressUp()}
+        return (<TouchableHighlight disabled={this.props.disable ? this.props.disable : false}
+                                    onPressIn={() => this.pressDown()} onPressOut={() => this.pressUp()}
                                     underlayColor={this.styleTypoPress(this.state.tipo)} onPress={() => {
                 this.press()
             }} style={this.styleTypo(this.state.tipo)}>
